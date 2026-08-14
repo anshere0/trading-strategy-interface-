@@ -52,6 +52,8 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const thresholdParam = searchParams.get('threshold');
   const threshold = thresholdParam ? parseFloat(thresholdParam) : 1.25;
+  const maxThresholdParam = searchParams.get('maxThreshold');
+  const maxThreshold = maxThresholdParam ? parseFloat(maxThresholdParam) : 5.0;
 
   const url1 = "https://www.nseindia.com/api/live-analysis-variations?index=loosers";
   const url2 = "https://www.nseindia.com/api/live-analysis-variations?index=gainers";
@@ -136,11 +138,11 @@ export async function GET(request: Request) {
       });
 
       preOpenGainers = processedPreOpen
-        .filter((item: any) => item.pChange >= threshold)
+        .filter((item: any) => item.pChange >= threshold && item.pChange <= maxThreshold)
         .sort((a: any, b: any) => b.pChange - a.pChange);
 
       preOpenLosers = processedPreOpen
-        .filter((item: any) => item.pChange <= -threshold)
+        .filter((item: any) => item.pChange <= -threshold && item.pChange >= -maxThreshold)
         .sort((a: any, b: any) => a.pChange - b.pChange); // More negative first
     }
 

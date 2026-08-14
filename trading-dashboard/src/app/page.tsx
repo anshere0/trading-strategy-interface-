@@ -44,13 +44,15 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [thresholdInput, setThresholdInput] = useState<string>('1.25');
   const [threshold, setThreshold] = useState<number>(1.25);
+  const [maxThresholdInput, setMaxThresholdInput] = useState<string>('5.0');
+  const [maxThreshold, setMaxThreshold] = useState<number>(5.0);
   const [topN, setTopN] = useState<string>('Top 5');
 
   const fetchMarketData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`/api/market?threshold=${threshold}`);
+      const res = await fetch(`/api/market?threshold=${threshold}&maxThreshold=${maxThreshold}`);
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const json: MarketData = await res.json();
       
@@ -62,7 +64,7 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [threshold]);
+  }, [threshold, maxThreshold]);
 
   useEffect(() => {
     fetchMarketData();
@@ -158,6 +160,14 @@ export default function Home() {
               className="bg-[#0b0e14] border border-[var(--border-color)] rounded px-3 py-1.5 w-16 text-center focus:outline-none focus:border-[var(--accent-blue)]"
             />
             <span className="text-[var(--text-secondary)] text-sm">% min gap</span>
+
+            <input 
+              type="text" 
+              value={maxThresholdInput}
+              onChange={(e) => setMaxThresholdInput(e.target.value)}
+              className="bg-[#0b0e14] border border-[var(--border-color)] rounded px-3 py-1.5 w-16 text-center focus:outline-none focus:border-[var(--accent-blue)]"
+            />
+            <span className="text-[var(--text-secondary)] text-sm">% max gap</span>
             
             <select 
               value={topN}
@@ -170,7 +180,7 @@ export default function Home() {
             </select>
 
             <button 
-              onClick={() => { setThreshold(parseFloat(thresholdInput) || 1.25); fetchMarketData(); }}
+              onClick={() => { setThreshold(parseFloat(thresholdInput) || 1.25); setMaxThreshold(parseFloat(maxThresholdInput) || 5.0); fetchMarketData(); }}
               disabled={loading}
               className="bg-[#0b0e14] border border-[var(--border-color)] rounded px-4 py-1.5 hover:bg-white/5 transition-colors disabled:opacity-50"
             >
