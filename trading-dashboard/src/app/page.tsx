@@ -29,12 +29,14 @@ export default function Home() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<string>('');
+  const [threshold, setThreshold] = useState<number>(0.25);
+  const [thresholdInput, setThresholdInput] = useState<string>('0.25');
 
   const fetchMarketData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch('/api/market');
+      const res = await fetch(`/api/market?threshold=${threshold}`);
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const json: MarketData = await res.json();
       
@@ -47,7 +49,7 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [threshold]);
 
   useEffect(() => {
     // Initial fetch
@@ -68,16 +70,37 @@ export default function Home() {
           <p className="text-[var(--text-secondary)]">Live NSE Market Data Analysis</p>
         </div>
         <div className="text-right flex flex-col items-end">
-          <p className="text-sm text-[var(--text-secondary)] mb-2">
+          <div className="flex gap-4 items-end justify-end mb-4">
+            <div className="flex flex-col items-start gap-1">
+              <label className="text-xs text-[var(--text-secondary)] font-medium">Filter Difference (₹)</label>
+              <div className="flex gap-2">
+                <input 
+                  type="number" 
+                  step="0.05"
+                  value={thresholdInput}
+                  onChange={(e) => setThresholdInput(e.target.value)}
+                  className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-sm w-24 focus:outline-none focus:border-[var(--accent-blue)]"
+                />
+                <button 
+                  onClick={() => setThreshold(parseFloat(thresholdInput) || 0.25)}
+                  className="px-3 py-2 bg-[var(--accent-blue)]/10 text-[var(--accent-blue)] border border-[var(--accent-blue)]/30 rounded-lg hover:bg-[var(--accent-blue)]/20 transition-colors text-sm font-medium"
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
+            
+            <button 
+              onClick={fetchMarketData}
+              disabled={loading}
+              className="px-4 py-2 bg-[var(--bg-secondary)] hover:bg-[#334155] border border-[var(--border-color)] rounded-lg transition-colors text-sm font-medium disabled:opacity-50 h-[38px]"
+            >
+              {loading ? 'Refreshing...' : 'Refresh Data'}
+            </button>
+          </div>
+          <p className="text-sm text-[var(--text-secondary)]">
             Last Updated: {lastRefreshed || '...'}
           </p>
-          <button 
-            onClick={fetchMarketData}
-            disabled={loading}
-            className="px-4 py-2 bg-[var(--bg-secondary)] hover:bg-[#334155] border border-[var(--border-color)] rounded-lg transition-colors text-sm font-medium disabled:opacity-50"
-          >
-            {loading ? 'Refreshing...' : 'Refresh Data'}
-          </button>
         </div>
       </header>
 

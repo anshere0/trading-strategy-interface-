@@ -2,7 +2,11 @@ import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic'; // Prevent static caching
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const thresholdParam = searchParams.get('threshold');
+  const threshold = thresholdParam ? parseFloat(thresholdParam) : 0.25;
+
   const url1 = "https://www.nseindia.com/api/live-analysis-variations?index=loosers";
   const url2 = "https://www.nseindia.com/api/live-analysis-variations?index=gainers";
   const preOpenUrl = "https://www.nseindia.com/api/market-data-pre-open?key=FO";
@@ -33,7 +37,7 @@ export async function GET() {
     // Process Losers
     const losersList = losersData?.FOSec?.data || [];
     const topLosers = losersList
-      .filter((item: any) => (item.high_price - item.open_price) < 0.25)
+      .filter((item: any) => (item.high_price - item.open_price) < threshold)
       .slice(0, 15)
       .map((item: any) => ({
         symbol: item.symbol,
@@ -50,7 +54,7 @@ export async function GET() {
     // Process Gainers
     const gainersList = gainersData?.FOSec?.data || [];
     const topGainers = gainersList
-      .filter((item: any) => (item.open_price - item.low_price) < 0.25)
+      .filter((item: any) => (item.open_price - item.low_price) < threshold)
       .slice(0, 15)
       .map((item: any) => ({
         symbol: item.symbol,
