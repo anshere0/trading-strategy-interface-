@@ -1,0 +1,325 @@
+//@version=6
+indicator("Morning Tea Strategy", shorttitle="M-Tea Scr", overlay=true, max_labels_count=50, max_lines_count=50)
+
+// ==============================================================================
+// 🍵 MORNING TEA STRATEGY & SCREENER — Pine Script v6 (Optimized)
+// ==============================================================================
+// Conditions 1-5 | Dhan (30s) & TradingView compatible
+// ==============================================================================
+
+// ─── INPUTS ───────────────────────────────────────────
+
+grp1 = "⚙️ Strategy Rules"
+use_gap      = input.bool(true,  "Require Min Gap (1.25%)", group=grp1)
+min_gap      = input.float(1.25, "Min Gap %", minval=0.1, step=0.25, group=grp1)
+max_gap      = input.float(5.0,  "Max Gap %", minval=0.5, step=0.25, group=grp1)
+use_prox     = input.bool(true,  "Require Open Near Pivot", group=grp1)
+max_prox     = input.float(0.50, "Max Pivot Proximity %", minval=0.05, step=0.1, group=grp1)
+one_signal   = input.bool(true,  "First Signal Only", group=grp1)
+
+grp2 = "⏰ Session"
+sess         = input.session("0915-0930", "Entry Window", group=grp2)
+show_bg      = input.bool(true,  "Highlight Window", group=grp2)
+
+grp3 = "📊 Visuals"
+show_pivots  = input.bool(true,  "Show Today's Pivots", group=grp3)
+show_labels  = input.bool(true,  "Show Signal Labels", group=grp3)
+col_p        = input.color(#f1c40f, "Pivot Color", group=grp3)
+col_r        = input.color(#e74c3c, "Resistance Color", group=grp3)
+col_g        = input.color(#2ecc71, "Support Color", group=grp3)
+
+grp4 = "🔍 Screener"
+show_scr     = input.bool(true,  "Show Screener", group=grp4)
+
+grp5 = "📋 Watchlist"
+i01 = input.symbol("NSE:RELIANCE",   "01", group=grp5, inline="r1")
+i02 = input.symbol("NSE:HDFCBANK",   "02", group=grp5, inline="r1")
+i03 = input.symbol("NSE:ICICIBANK",  "03", group=grp5, inline="r2")
+i04 = input.symbol("NSE:INFY",       "04", group=grp5, inline="r2")
+i05 = input.symbol("NSE:SBIN",       "05", group=grp5, inline="r3")
+i06 = input.symbol("NSE:TATAMOTORS", "06", group=grp5, inline="r3")
+i07 = input.symbol("NSE:TATASTEEL",  "07", group=grp5, inline="r4")
+i08 = input.symbol("NSE:AXISBANK",   "08", group=grp5, inline="r4")
+i09 = input.symbol("NSE:BAJFINANCE", "09", group=grp5, inline="r5")
+i10 = input.symbol("NSE:LT",         "10", group=grp5, inline="r5")
+i11 = input.symbol("NSE:MARUTI",     "11", group=grp5, inline="r6")
+i12 = input.symbol("NSE:BHARTIARTL", "12", group=grp5, inline="r6")
+
+// ─── HELPERS ──────────────────────────────────────────
+
+f_step(float price) =>
+    float r = 500.0
+    if price < 50
+        r := 1.0
+    else if price < 100
+        r := 2.5
+    else if price < 250
+        r := 5.0
+    else if price < 500
+        r := 10.0
+    else if price < 1000
+        r := 20.0
+    else if price < 2500
+        r := 50.0
+    else if price < 25000
+        r := 100.0
+    r
+
+f_nearest(float o, float p, float r1, float s1, float r2, float s2, float r3, float s3) =>
+    float md = math.abs(o - p)
+    string nm = "P"
+    if math.abs(o - r1) < md
+        md := math.abs(o - r1)
+        nm := "R1"
+    if math.abs(o - s1) < md
+        md := math.abs(o - s1)
+        nm := "S1"
+    if math.abs(o - r2) < md
+        md := math.abs(o - r2)
+        nm := "R2"
+    if math.abs(o - s2) < md
+        md := math.abs(o - s2)
+        nm := "S2"
+    if math.abs(o - r3) < md
+        md := math.abs(o - r3)
+        nm := "R3"
+    if math.abs(o - s3) < md
+        md := math.abs(o - s3)
+        nm := "S3"
+    float pct = o != 0 ? (md / o) * 100.0 : 999.0
+    [nm, pct]
+
+f_cross(float c, float pc, float p, float r1, float s1, float r2, float s2, float r3, float s3) =>
+    bool up = (pc <= p and c > p) or (pc <= r1 and c > r1) or (pc <= r2 and c > r2) or (pc <= r3 and c > r3) or (pc <= s1 and c > s1) or (pc <= s2 and c > s2) or (pc <= s3 and c > s3)
+    bool dn = (pc >= p and c < p) or (pc >= r1 and c < r1) or (pc >= r2 and c < r2) or (pc >= r3 and c < r3) or (pc >= s1 and c < s1) or (pc >= s2 and c < s2) or (pc >= s3 and c < s3)
+    [up, dn]
+
+// ─── CURRENT CHART PIVOTS ─────────────────────────────
+
+dH  = request.security(syminfo.tickerid, "D", high[1],  barmerge.gaps_off, barmerge.lookahead_on)
+dL  = request.security(syminfo.tickerid, "D", low[1],   barmerge.gaps_off, barmerge.lookahead_on)
+dC  = request.security(syminfo.tickerid, "D", close[1], barmerge.gaps_off, barmerge.lookahead_on)
+
+P   = (dH + dL + dC) / 3.0
+R1  = (2.0 * P) - dL
+S1  = (2.0 * P) - dH
+R2  = P + (dH - dL)
+S2  = P - (dH - dL)
+R3  = dH + 2.0 * (P - dL)
+S3  = dL - 2.0 * (dH - P)
+
+// ─── GAP & PROXIMITY ─────────────────────────────────
+
+new_day = ta.change(time("D")) != 0
+
+var float dayO     = na
+var float gapPct   = na
+var bool  gapOK    = false
+var string pivName = ""
+var float  pivDist = na
+var bool   proxOK  = false
+
+if new_day
+    dayO    := open
+    gapPct  := not na(dC) and dC != 0 ? ((dayO - dC) / dC) * 100.0 : 0.0
+    gapOK   := not use_gap or (math.abs(gapPct) >= min_gap and math.abs(gapPct) <= max_gap)
+    [nm, d]  = f_nearest(dayO, P, R1, S1, R2, S2, R3, S3)
+    pivName := nm
+    pivDist := d
+    proxOK  := not use_prox or pivDist <= max_prox
+
+atm = math.round(dayO / f_step(dayO)) * f_step(dayO)
+
+// ─── SESSION & SIGNALS ────────────────────────────────
+
+in_sess = not na(time(timeframe.period, sess + ":1234567", "Asia/Kolkata"))
+bgcolor(show_bg and in_sess ? color.new(color.teal, 94) : na, title="Window")
+
+[xUp, xDn] = f_cross(close, close[1], P, R1, S1, R2, S2, R3, S3)
+
+var bool fired = false
+if new_day
+    fired := false
+
+// Signals on chart: require session window + gap + proximity
+ok       = in_sess and gapOK and proxOK and (not one_signal or not fired)
+sigCall  = ok and xUp
+sigPut   = ok and xDn
+
+if sigCall or sigPut
+    fired := true
+
+// ─── CHART VISUALS ────────────────────────────────────
+
+// Compact signal labels
+if sigCall and show_labels
+    label.new(bar_index, low, "CALL " + str.tostring(atm) + " CE  SL:" + str.tostring(low[1], "#.##"),
+              style=label.style_label_up, color=#00c853, textcolor=color.white, size=size.small)
+
+if sigPut and show_labels
+    label.new(bar_index, high, "PUT " + str.tostring(atm) + " PE  SL:" + str.tostring(high[1], "#.##"),
+              style=label.style_label_down, color=#d50000, textcolor=color.white, size=size.small)
+
+// Today-only pivot lines (drawn once per new day, extend right)
+var line lP  = na
+var line lR1 = na
+var line lS1 = na
+var line lR2 = na
+var line lS2 = na
+var line lR3 = na
+var line lS3 = na
+
+if new_day and show_pivots
+    line.delete(lP)
+    line.delete(lR1)
+    line.delete(lS1)
+    line.delete(lR2)
+    line.delete(lS2)
+    line.delete(lR3)
+    line.delete(lS3)
+    lP  := line.new(bar_index, P,  bar_index + 1, P,  color=col_p, width=2, extend=extend.right)
+    lR1 := line.new(bar_index, R1, bar_index + 1, R1, color=col_r, width=1, extend=extend.right, style=line.style_dashed)
+    lS1 := line.new(bar_index, S1, bar_index + 1, S1, color=col_g, width=1, extend=extend.right, style=line.style_dashed)
+    lR2 := line.new(bar_index, R2, bar_index + 1, R2, color=color.new(col_r, 40), width=1, extend=extend.right, style=line.style_dotted)
+    lS2 := line.new(bar_index, S2, bar_index + 1, S2, color=color.new(col_g, 40), width=1, extend=extend.right, style=line.style_dotted)
+    lR3 := line.new(bar_index, R3, bar_index + 1, R3, color=color.new(col_r, 60), width=1, extend=extend.right, style=line.style_dotted)
+    lS3 := line.new(bar_index, S3, bar_index + 1, S3, color=color.new(col_g, 60), width=1, extend=extend.right, style=line.style_dotted)
+
+// Pivot labels
+var label labP  = na
+var label labR1 = na
+var label labS1 = na
+var label labR2 = na
+var label labS2 = na
+
+if new_day and show_pivots
+    label.delete(labP)
+    label.delete(labR1)
+    label.delete(labS1)
+    label.delete(labR2)
+    label.delete(labS2)
+    labP  := label.new(bar_index, P,  "P",  style=label.style_none, textcolor=col_p, size=size.tiny)
+    labR1 := label.new(bar_index, R1, "R1", style=label.style_none, textcolor=col_r, size=size.tiny)
+    labS1 := label.new(bar_index, S1, "S1", style=label.style_none, textcolor=col_g, size=size.tiny)
+    labR2 := label.new(bar_index, R2, "R2", style=label.style_none, textcolor=color.new(col_r, 40), size=size.tiny)
+    labS2 := label.new(bar_index, S2, "S2", style=label.style_none, textcolor=color.new(col_g, 40), size=size.tiny)
+
+// ─── SCREENER ENGINE ──────────────────────────────────
+// Screener evaluates gap + pivot proximity INDEPENDENTLY of session/timeframe
+// so you always see which stocks are QUALIFIED, even outside 09:15-09:30
+
+f_scan(string sym) =>
+    [sh, sl2, sc, so] = request.security(sym, "D", [high[1], low[1], close[1], open], barmerge.gaps_off, barmerge.lookahead_on)
+    float sp  = (sh + sl2 + sc) / 3.0
+    float sr1 = (2.0 * sp) - sl2
+    float ss1 = (2.0 * sp) - sh
+    float sr2 = sp + (sh - sl2)
+    float ss2 = sp - (sh - sl2)
+    float sr3 = sh + 2.0 * (sp - sl2)
+    float ss3 = sl2 - 2.0 * (sh - sp)
+
+    // Gap check — always evaluated
+    float gp  = not na(sc) and sc != 0 ? ((so - sc) / sc) * 100.0 : 0.0
+    bool  gk  = math.abs(gp) >= min_gap and math.abs(gp) <= max_gap
+
+    // Pivot proximity — always evaluated
+    [pn, pd]  = f_nearest(so, sp, sr1, ss1, sr2, ss2, sr3, ss3)
+    bool  pk  = pd <= max_prox
+
+    // ATM strike — always calculated
+    float sa  = math.round(so / f_step(so)) * f_step(so)
+
+    // Cross detection — uses current timeframe data for live signals
+    [cc, pc2] = request.security(sym, timeframe.period, [close, close[1]])
+    [cu, cd]  = f_cross(cc, pc2, sp, sr1, ss1, sr2, ss2, sr3, ss3)
+
+    // CALL/PUT only if gap + proximity are both valid AND a cross happened
+    bool call = gk and pk and cu
+    bool put  = gk and pk and cd
+
+    [gp, gk, pn, pd, pk, sa, call, put]
+
+[g1,gv1,pn1,dp1,pv1,a1,c1,p1]             = f_scan(i01)
+[g2,gv2,pn2,dp2,pv2,a2,c2,p2]             = f_scan(i02)
+[g3,gv3,pn3,dp3,pv3,a3,c3,p3]             = f_scan(i03)
+[g4,gv4,pn4,dp4,pv4,a4,c4,p4]             = f_scan(i04)
+[g5,gv5,pn5,dp5,pv5,a5,c5,p5]             = f_scan(i05)
+[g6,gv6,pn6,dp6,pv6,a6,c6,p6]             = f_scan(i06)
+[g7,gv7,pn7,dp7,pv7,a7,c7,p7]             = f_scan(i07)
+[g8,gv8,pn8,dp8,pv8,a8,c8,p8]             = f_scan(i08)
+[g9,gv9,pn9,dp9,pv9,a9,c9,p9]             = f_scan(i09)
+[g10,gv10,pn10,dp10,pv10,a10,c10,p10]     = f_scan(i10)
+[g11,gv11,pn11,dp11,pv11,a11,c11,p11]     = f_scan(i11)
+[g12,gv12,pn12,dp12,pv12,a12,c12,p12]     = f_scan(i12)
+
+// ─── SCREENER TABLE ───────────────────────────────────
+
+var tpos = position.top_right
+var table t = table.new(tpos, 5, 14, bgcolor=color.new(#0d1117, 5), border_color=color.new(#30363d, 0), border_width=1)
+
+f_r(table tb, int row, string sym, float gp, bool gk, string pn, float dp, bool pk, float atm2, bool ca, bool pu) =>
+    string cs = str.replace_all(str.replace_all(sym, "NSE:", ""), "BSE:", "")
+
+    // Stock name
+    table.cell(tb, 0, row, cs, bgcolor=color.new(#161b22, 0), text_color=color.white, text_size=size.tiny, text_halign=text.align_left)
+
+    // Gap %
+    string gt = (gp >= 0 ? "+" : "") + str.tostring(gp, "#.##") + "%"
+    color gc  = gk ? (gp >= 0 ? #2ecc71 : #e74c3c) : #555555
+    table.cell(tb, 1, row, gt, bgcolor=color.new(#161b22, 0), text_color=gc, text_size=size.tiny, text_halign=text.align_right)
+
+    // Nearest Pivot + distance
+    string pt = pn + " " + str.tostring(dp, "#.##") + "%"
+    color  pc = pk ? #2ecc71 : #555555
+    table.cell(tb, 2, row, pt, bgcolor=color.new(#161b22, 0), text_color=pc, text_size=size.tiny, text_halign=text.align_center)
+
+    // ATM Strike
+    table.cell(tb, 3, row, str.tostring(atm2, "#"), bgcolor=color.new(#161b22, 0), text_color=#58a6ff, text_size=size.tiny, text_halign=text.align_right)
+
+    // Signal / Status — ALWAYS shows qualification status
+    string st = "—"
+    color sf  = #555555
+    color sb  = color.new(#161b22, 0)
+    if ca
+        st := "▲ CALL"
+        sf := color.white
+        sb := color.new(#00c853, 15)
+    else if pu
+        st := "▼ PUT"
+        sf := color.white
+        sb := color.new(#d50000, 15)
+    else if gk and pk
+        st := "● READY"
+        sf := #f1c40f
+    else if gk and not pk
+        st := "~ NO PIV"
+        sf := #8b949e
+    else
+        st := "✕ NO GAP"
+    table.cell(tb, 4, row, st, bgcolor=sb, text_color=sf, text_size=size.tiny, text_halign=text.align_center)
+
+if show_scr and barstate.islast
+    // Header
+    table.cell(t, 0, 0, "STOCK",  bgcolor=color.new(#21262d, 0), text_color=#8b949e, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(t, 1, 0, "GAP",    bgcolor=color.new(#21262d, 0), text_color=#8b949e, text_size=size.tiny, text_halign=text.align_right)
+    table.cell(t, 2, 0, "PIVOT",  bgcolor=color.new(#21262d, 0), text_color=#8b949e, text_size=size.tiny, text_halign=text.align_center)
+    table.cell(t, 3, 0, "ATM",    bgcolor=color.new(#21262d, 0), text_color=#8b949e, text_size=size.tiny, text_halign=text.align_right)
+    table.cell(t, 4, 0, in_sess ? "🟢 LIVE" : "STATUS", bgcolor=color.new(#21262d, 0), text_color=in_sess ? #00c853 : #8b949e, text_size=size.tiny, text_halign=text.align_center)
+
+    f_r(t, 1,  i01, g1,  gv1,  pn1,  dp1,  pv1,  a1,  c1,  p1)
+    f_r(t, 2,  i02, g2,  gv2,  pn2,  dp2,  pv2,  a2,  c2,  p2)
+    f_r(t, 3,  i03, g3,  gv3,  pn3,  dp3,  pv3,  a3,  c3,  p3)
+    f_r(t, 4,  i04, g4,  gv4,  pn4,  dp4,  pv4,  a4,  c4,  p4)
+    f_r(t, 5,  i05, g5,  gv5,  pn5,  dp5,  pv5,  a5,  c5,  p5)
+    f_r(t, 6,  i06, g6,  gv6,  pn6,  dp6,  pv6,  a6,  c6,  p6)
+    f_r(t, 7,  i07, g7,  gv7,  pn7,  dp7,  pv7,  a7,  c7,  p7)
+    f_r(t, 8,  i08, g8,  gv8,  pn8,  dp8,  pv8,  a8,  c8,  p8)
+    f_r(t, 9,  i09, g9,  gv9,  pn9,  dp9,  pv9,  a9,  c9,  p9)
+    f_r(t, 10, i10, g10, gv10, pn10, dp10, pv10, a10, c10, p10)
+    f_r(t, 11, i11, g11, gv11, pn11, dp11, pv11, a11, c11, p11)
+    f_r(t, 12, i12, g12, gv12, pn12, dp12, pv12, a12, c12, p12)
+
+// ─── ALERTS ───────────────────────────────────────────
+
+alertcondition(sigCall, title="BUY CALL", message="🍵 BUY CALL on {{ticker}} @ {{close}}")
+alertcondition(sigPut,  title="BUY PUT",  message="🍵 BUY PUT on {{ticker}} @ {{close}}")
