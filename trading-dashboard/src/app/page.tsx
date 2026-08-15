@@ -72,9 +72,11 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [countdown, setCountdown] = useState<number>(0);
 
-  // Thresholds (kept from previous implementation)
-  const [threshold] = useState<number>(1.25);
-  const [maxThreshold] = useState<number>(5.0);
+  // Thresholds
+  const [thresholdInput, setThresholdInput] = useState<string>('1.25');
+  const [threshold, setThreshold] = useState<number>(1.25);
+  const [maxThresholdInput, setMaxThresholdInput] = useState<string>('5.0');
+  const [maxThreshold, setMaxThreshold] = useState<number>(5.0);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -211,6 +213,38 @@ export default function Home() {
           </select>
         </div>
 
+        <div className="flex flex-col gap-1">
+          <label className="text-[var(--text-secondary)] text-xs font-semibold">Min gap %</label>
+          <input
+            type="number"
+            step="0.25"
+            min="0"
+            value={thresholdInput}
+            onChange={(e) => {
+              setThresholdInput(e.target.value);
+              const val = parseFloat(e.target.value);
+              if (!isNaN(val)) setThreshold(val);
+            }}
+            className="control-input w-20 text-center"
+          />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label className="text-[var(--text-secondary)] text-xs font-semibold">Max gap %</label>
+          <input
+            type="number"
+            step="0.25"
+            min="0"
+            value={maxThresholdInput}
+            onChange={(e) => {
+              setMaxThresholdInput(e.target.value);
+              const val = parseFloat(e.target.value);
+              if (!isNaN(val)) setMaxThreshold(val);
+            }}
+            className="control-input w-20 text-center"
+          />
+        </div>
+
         <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
           <label className="text-[var(--text-secondary)] text-xs font-semibold">Find symbol</label>
           <input
@@ -224,7 +258,14 @@ export default function Home() {
 
         <div className="flex flex-col gap-1 self-end">
           <button
-            onClick={() => { fetchMarketData(); setCountdown(autoRefreshSec); }}
+            onClick={() => { 
+              const minVal = parseFloat(thresholdInput) || 1.25;
+              const maxVal = parseFloat(maxThresholdInput) || 5.0;
+              setThreshold(minVal);
+              setMaxThreshold(maxVal);
+              fetchMarketData(); 
+              setCountdown(autoRefreshSec); 
+            }}
             disabled={loading}
             className="btn-refresh"
           >
