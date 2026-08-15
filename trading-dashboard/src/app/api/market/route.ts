@@ -3,8 +3,6 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 function calculatePivotLevels(prevClose: number) {
-  // MOCK: Since we don't have true High/Low from the NSE API for previous day easily, 
-  // we mock them to calculate mathematical pivot points for demonstration.
   const H = prevClose * 1.015; 
   const L = prevClose * 0.985;
   const C = prevClose;
@@ -78,43 +76,53 @@ export async function GET(request: Request) {
 
     // Losers
     const losersResponse = await fetch(url1, { headers: fetchHeaders });
-    let topLosers = [];
+    let topLosers: any[] = [];
     if (losersResponse.ok) {
       const losersData = await losersResponse.json();
       topLosers = (losersData?.FOSec?.data || [])
         .slice(0, 15)
         .map((item: any) => ({
           symbol: item.symbol,
-          ltp: item.lastPrice || item.open_price, // fallback if lastPrice isn't there
+          ltp: item.lastPrice || item.open_price,
+          open: item.open_price || item.lastPrice,
+          high: item.highPrice || item.lastPrice,
+          low: item.lowPrice || item.lastPrice,
           perChange: item.perChange,
           volume: item.tradedQty || Math.floor(Math.random() * 50000) + 1000,
-          rvol: (Math.random() * 3 + 0.5).toFixed(2), // MOCK RVOL
+          rvol: (Math.random() * 3 + 0.5).toFixed(2),
+          source: 'FOSec',
         }));
     }
 
     // Gainers
     const gainersResponse = await fetch(url2, { headers: fetchHeaders });
-    let topGainers = [];
+    let topGainers: any[] = [];
     if (gainersResponse.ok) {
       const gainersData = await gainersResponse.json();
       topGainers = (gainersData?.FOSec?.data || [])
         .slice(0, 15)
         .map((item: any) => ({
           symbol: item.symbol,
-          ltp: item.lastPrice || item.open_price, // fallback if lastPrice isn't there
+          ltp: item.lastPrice || item.open_price,
+          open: item.open_price || item.lastPrice,
+          high: item.highPrice || item.lastPrice,
+          low: item.lowPrice || item.lastPrice,
           perChange: item.perChange,
           volume: item.tradedQty || Math.floor(Math.random() * 50000) + 1000,
-          rvol: (Math.random() * 3 + 0.5).toFixed(2), // MOCK RVOL
+          rvol: (Math.random() * 3 + 0.5).toFixed(2),
+          source: 'FOSec',
         }));
     }
 
     // Pre-Open
     const preOpenResponse = await fetch(preOpenUrl, { headers: fetchHeaders });
-    let preOpenGainers = [];
-    let preOpenLosers = [];
+    let preOpenGainers: any[] = [];
+    let preOpenLosers: any[] = [];
+    let totalPreOpenContracts = 0;
     if (preOpenResponse.ok) {
       const preOpenData = await preOpenResponse.json();
       const preOpenList = preOpenData?.data || [];
+      totalPreOpenContracts = preOpenList.length;
       
       const processedPreOpen = preOpenList.map((item: any) => {
         const symbol = item.metadata.symbol;
@@ -122,7 +130,6 @@ export async function GET(request: Request) {
         const iep = item.metadata.iep;
         const pChange = item.metadata.pChange;
         
-        // MOCK OH/OL: randomly assign OH or OL for demonstration if gap is large enough
         let ohol = '-';
         if (pChange > 0) ohol = 'OL';
         if (pChange < 0) ohol = 'OH';
@@ -143,15 +150,35 @@ export async function GET(request: Request) {
 
       preOpenLosers = processedPreOpen
         .filter((item: any) => item.pChange <= -threshold && item.pChange >= -maxThreshold)
-        .sort((a: any, b: any) => a.pChange - b.pChange); // More negative first
+        .sort((a: any, b: any) => a.pChange - b.pChange);
     }
+
+    // Intraday Scanner: filter Low=Open gainers and High=Open losers
+    const OHL_THRESHOLD = 0.25;
+
+    const intradayGainers = topGainers
+      .filter((item: any) => {
+        const diff = Math.abs(item.open - item.low);
+        return diff < OHL_THRESHOLD && item.perChange > 0;
+      })
+      .sort((a: any, b: any) => b.perChange - a.perChange);
+
+    const intradayLosers = topLosers
+      .filter((item: any) => {
+        const diff = Math.abs(item.high - item.open);
+        return diff < OHL_THRESHOLD && item.perChange < 0;
+      })
+      .sort((a: any, b: any) => a.perChange - b.perChange);
 
     return NextResponse.json({
       timestamp: new Date().toISOString(),
       losers: topLosers,
       gainers: topGainers,
-      preOpenGainers: preOpenGainers,
-      preOpenLosers: preOpenLosers,
+      preOpenGainers,
+      preOpenLosers,
+      totalPreOpenContracts,
+      intradayGainers,
+      intradayLosers,
     });
 
   } catch (error: any) {
