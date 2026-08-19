@@ -165,12 +165,12 @@ export async function GET() {
             seenGainerSymbols.add(item.symbol);
             allGainers.push({
               symbol: item.symbol,
-              ltp: item.lastPrice ?? item.open_price ?? 0,
+              ltp: item.ltp ?? item.lastPrice ?? item.open_price ?? 0,
               open: item.open_price ?? item.lastPrice ?? 0,
-              high: item.highPrice ?? item.lastPrice ?? 0,
-              low: item.lowPrice ?? item.lastPrice ?? 0,
-              perChange: item.perChange ?? 0,
-              volume: item.tradedQuantity ?? item.tradedQty ?? 0,
+              high: item.high_price ?? item.highPrice ?? item.lastPrice ?? 0,
+              low: item.low_price ?? item.lowPrice ?? item.lastPrice ?? 0,
+              perChange: item.perChange ?? item.net_price ?? 0,
+              volume: item.trade_quantity ?? item.tradedQuantity ?? item.tradedQty ?? 0,
               source: index,
             });
           }
@@ -190,12 +190,12 @@ export async function GET() {
             seenLoserSymbols.add(item.symbol);
             allLosers.push({
               symbol: item.symbol,
-              ltp: item.lastPrice ?? item.open_price ?? 0,
+              ltp: item.ltp ?? item.lastPrice ?? item.open_price ?? 0,
               open: item.open_price ?? item.lastPrice ?? 0,
-              high: item.highPrice ?? item.lastPrice ?? 0,
-              low: item.lowPrice ?? item.lastPrice ?? 0,
-              perChange: item.perChange ?? 0,
-              volume: item.tradedQuantity ?? item.tradedQty ?? 0,
+              high: item.high_price ?? item.highPrice ?? item.lastPrice ?? 0,
+              low: item.low_price ?? item.lowPrice ?? item.lastPrice ?? 0,
+              perChange: item.perChange ?? item.net_price ?? 0,
+              volume: item.trade_quantity ?? item.tradedQuantity ?? item.tradedQty ?? 0,
               source: index,
             });
           }
