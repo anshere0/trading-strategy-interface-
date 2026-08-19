@@ -16,6 +16,8 @@
   --accent-red: #ef4444;
   --accent-blue: #3b82f6;
   --accent-cyan: #06b6d4;
+  --accent-yellow: #eab308;
+  --accent-purple: #a855f7;
   --border-color: #1e293b;
 }
 
@@ -28,19 +30,12 @@ body {
   min-height: 100vh;
 }
 
-/* Glassmorphism utilities */
-.glass-panel {
-  background: var(--bg-glass);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-}
-
-/* Badges */
+/* ═══ Badges ═══════════════════════════════════════════════════ */
 .badge-green {
   background-color: rgba(34, 197, 94, 0.15);
   color: #22c55e;
   border: 1px solid rgba(34, 197, 94, 0.3);
-  padding: 2px 8px;
+  padding: 2px 10px;
   border-radius: 4px;
   font-size: 0.7rem;
   font-weight: 700;
@@ -51,7 +46,7 @@ body {
   background-color: rgba(239, 68, 68, 0.15);
   color: #ef4444;
   border: 1px solid rgba(239, 68, 68, 0.3);
-  padding: 2px 8px;
+  padding: 2px 10px;
   border-radius: 4px;
   font-size: 0.7rem;
   font-weight: 700;
@@ -62,18 +57,74 @@ body {
   background-color: rgba(59, 130, 246, 0.15);
   color: #3b82f6;
   border: 1px solid rgba(59, 130, 246, 0.3);
-  padding: 2px 8px;
+  padding: 2px 10px;
   border-radius: 4px;
   font-size: 0.7rem;
   font-weight: 700;
 }
 
-/* Source badge (FOSec, BANKNIFTY, etc.) */
+.badge-yellow {
+  background-color: rgba(234, 179, 8, 0.15);
+  color: #eab308;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+/* ═══ Date Badge (green pill) ═══════════════════════════════════ */
+.date-badge {
+  display: inline-block;
+  background-color: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  padding: 3px 14px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin-left: 12px;
+  vertical-align: middle;
+}
+
+/* ═══ Market Status Header ═══════════════════════════════════════ */
+.market-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.market-status .status-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-yellow);
+  animation: pulse-yellow 2s ease-in-out infinite;
+}
+
+.market-status .status-dot.open {
+  background: var(--accent-green);
+  animation: pulse-green 2s ease-in-out infinite;
+}
+
+.market-status .time-badge {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: var(--font-mono), monospace;
+}
+
+/* ═══ Source badges (FOSec, NIFTY, BANKNIFTY) ═══════════════════ */
 .source-badge {
   display: inline-block;
-  background: rgba(59, 130, 246, 0.15);
-  color: #60a5fa;
-  border: 1px solid rgba(59, 130, 246, 0.25);
   padding: 1px 6px;
   border-radius: 3px;
   font-size: 0.6rem;
@@ -83,7 +134,25 @@ body {
   letter-spacing: 0.03em;
 }
 
-/* Stats cards */
+.source-badge.fosec {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.source-badge.nifty {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+.source-badge.banknifty {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.25);
+}
+
+/* ═══ Stats cards ════════════════════════════════════════════════ */
 .stat-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -113,12 +182,25 @@ body {
   margin-bottom: 4px;
 }
 
-/* Section headers */
+/* ═══ Market Closed Banner ═══════════════════════════════════════ */
+.market-banner {
+  background: rgba(234, 179, 8, 0.08);
+  border: 1px solid rgba(234, 179, 8, 0.25);
+  border-radius: 8px;
+  padding: 10px 18px;
+  margin-bottom: 24px;
+  font-size: 0.82rem;
+  color: #fbbf24;
+  font-weight: 500;
+}
+
+/* ═══ Section headers ════════════════════════════════════════════ */
 .section-title {
   font-size: 1.4rem;
   font-weight: 800;
   color: var(--text-primary);
   letter-spacing: -0.01em;
+  display: inline;
 }
 
 .section-subtitle {
@@ -127,7 +209,7 @@ body {
   margin-top: 2px;
 }
 
-/* Table panel */
+/* ═══ Table panel ════════════════════════════════════════════════ */
 .table-panel {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -149,21 +231,194 @@ body {
   color: var(--text-primary);
 }
 
-/* Refresh button */
+/* ═══ Signal Panel ═══════════════════════════════════════════════ */
+.signal-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.signal-panel .signal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.signal-panel .signal-header h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.signal-panel .signal-header .signal-count {
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.signal-count.buy-count {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.signal-count.sell-count {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.signal-panel .signal-body {
+  padding: 20px 18px;
+  min-height: 60px;
+}
+
+.signal-empty {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  padding: 16px 0;
+}
+
+/* ═══ Pivot Signal Status Banner ════════════════════════════════ */
+.pivot-status-banner {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 0.72rem;
+  color: #fca5a5;
+  line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.pivot-status-banner .status-dot-red {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  min-width: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  margin-top: 4px;
+  animation: pulse-red 2s ease-in-out infinite;
+}
+
+/* ═══ Signal Arrow ═══════════════════════════════════════════════ */
+.signal-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 900;
+  margin-right: 6px;
+}
+
+.signal-arrow.buy {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.signal-arrow.sell {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+/* ═══ Confirmed Signal Panel ════════════════════════════════════ */
+.confirmed-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.confirmed-panel.buy-panel {
+  border-left: 3px solid rgba(34, 197, 94, 0.4);
+}
+
+.confirmed-panel.sell-panel {
+  border-left: 3px solid rgba(239, 68, 68, 0.4);
+}
+
+.confirmed-panel .confirmed-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.confirmed-panel .confirmed-header h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.final-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.final-badge.buy-badge {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.final-badge.sell-badge {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.final-badge .final-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.final-badge.buy-badge .final-dot {
+  background: #22c55e;
+}
+
+.final-badge.sell-badge .final-dot {
+  background: #ef4444;
+}
+
+.confirmed-panel .confirmed-body {
+  padding: 20px 18px;
+  min-height: 40px;
+}
+
+/* ═══ Refresh button ═════════════════════════════════════════════ */
 .btn-refresh {
-  background: var(--accent-green);
-  color: #000;
+  background: var(--accent-blue);
+  color: #fff;
   border: none;
-  padding: 8px 20px;
+  padding: 10px 22px;
   border-radius: 6px;
   font-weight: 700;
   font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.2s ease;
+  line-height: 1.2;
 }
 
 .btn-refresh:hover {
-  background: #16a34a;
+  background: #2563eb;
   transform: translateY(-1px);
 }
 
@@ -173,7 +428,7 @@ body {
   transform: none;
 }
 
-/* Controls */
+/* ═══ Controls ═══════════════════════════════════════════════════ */
 .control-select,
 .control-input {
   background: var(--bg-primary);
@@ -195,8 +450,32 @@ body {
   color: var(--text-secondary);
 }
 
-/* Live indicator pulse */
+/* Wide data source select */
+.control-select-wide {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 7px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  outline: none;
+  transition: border-color 0.2s;
+  width: 100%;
+  min-width: 200px;
+}
+
+/* ═══ Animations ═════════════════════════════════════════════════ */
 @keyframes pulse-green {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes pulse-yellow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes pulse-red {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
@@ -211,15 +490,6 @@ body {
   margin-right: 6px;
 }
 
-/* Text gradient */
-.text-gradient {
-  background: linear-gradient(to right, #3b82f6, #8b5cf6);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
@@ -229,7 +499,7 @@ body {
   animation: fadeIn 0.5s ease-out forwards;
 }
 
-/* Footer */
+/* ═══ Footer ═════════════════════════════════════════════════════ */
 .app-footer {
   border-top: 1px solid var(--border-color);
   padding: 16px 0;
@@ -241,7 +511,7 @@ body {
   color: var(--text-secondary);
 }
 
-/* Custom Scrollbar */
+/* ═══ Custom Scrollbar ═══════════════════════════════════════════ */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -255,4 +525,100 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #334155;
+}
+
+/* ═══ Table Styles ═══════════════════════════════════════════════ */
+.data-table {
+  width: 100%;
+  text-align: left;
+  border-collapse: collapse;
+}
+
+.data-table thead tr {
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.data-table thead th {
+  padding: 10px 16px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.data-table tbody tr {
+  border-bottom: 1px solid rgba(30, 41, 59, 0.5);
+  transition: background-color 0.15s;
+}
+
+.data-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.data-table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.data-table tbody td {
+  padding: 12px 16px;
+}
+
+.text-green { color: var(--accent-green); }
+.text-red { color: var(--accent-red); }
+.text-blue { color: var(--accent-blue); }
+.text-cyan { color: var(--accent-cyan); }
+.text-yellow { color: var(--accent-yellow); }
+.text-purple { color: var(--accent-purple); }
+.text-muted { color: var(--text-secondary); }
+.font-bold { font-weight: 700; }
+.text-right { text-align: right; }
+.text-center { text-align: center; }
+
+/* ═══ Signal Table (special columns) ════════════════════════════ */
+.signal-table {
+  width: 100%;
+  text-align: left;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.signal-table thead tr {
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.signal-table thead th {
+  padding: 8px 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.signal-table tbody tr {
+  border-bottom: 1px solid rgba(30, 41, 59, 0.5);
+}
+
+.signal-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.signal-table tbody td {
+  padding: 10px 10px;
+}
+
+.signal-symbol-info {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* ═══ Responsive ════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .app-footer {
+    flex-direction: column;
+    gap: 4px;
+    text-align: center;
+  }
 }

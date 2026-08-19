@@ -2,32 +2,36 @@ import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-function calculatePivotLevels(prevClose: number) {
-  const H = prevClose * 1.015; 
-  const L = prevClose * 0.985;
-  const C = prevClose;
-  
-  const P = (H + L + C) / 3;
-  const R1 = (P * 2) - L;
-  const S1 = (P * 2) - H;
-  const R2 = P + (H - L);
-  const S2 = P - (H - L);
-  const R3 = H + 2 * (P - L);
-  const S3 = L - 2 * (H - P);
+// ─── Pivot Level Calculation (Traditional) ──────────────────────
 
-  return { S3, S2, S1, P, R1, R2, R3 };
+function calculatePivotLevels(high: number, low: number, close: number) {
+  const P = (high + low + close) / 3;
+  const R1 = (P * 2) - low;
+  const S1 = (P * 2) - high;
+  const R2 = P + (high - low);
+  const S2 = P - (high - low);
+  const R3 = high + 2 * (P - low);
+  const S3 = low - 2 * (high - P);
+  const R4 = R3 + (R1 - S1);
+  const S4 = S3 - (R1 - S1);
+  const R5 = R4 + (R1 - S1);
+  const S5 = S4 - (R1 - S1);
+  return { S5, S4, S3, S2, S1, P, R1, R2, R3, R4, R5 };
 }
 
-function getNearestLevel(iep: number, prevClose: number) {
-  if (!iep || !prevClose) return null;
-  const levels = calculatePivotLevels(prevClose);
-  
+function getNearestPivotLevel(price: number, prevClose: number) {
+  if (!price || !prevClose) return null;
+  // Use estimated H/L for pivot calc (approx ±1.5% from prev close)
+  const estH = prevClose * 1.015;
+  const estL = prevClose * 0.985;
+  const levels = calculatePivotLevels(estH, estL, prevClose);
+
   let nearestName = '';
   let nearestValue = 0;
   let minDiff = Infinity;
 
   for (const [name, value] of Object.entries(levels)) {
-    const diff = Math.abs(iep - value);
+    const diff = Math.abs(price - value);
     if (diff < minDiff) {
       minDiff = diff;
       nearestName = name;
@@ -35,156 +39,321 @@ function getNearestLevel(iep: number, prevClose: number) {
     }
   }
 
-  const isAbove = iep > nearestValue;
-  const percentDiff = Math.abs(((iep - nearestValue) / nearestValue) * 100);
+  const position = price > nearestValue ? 'ABOVE' : 'BELOW';
+  const distancePercent = Math.abs(((price - nearestValue) / nearestValue) * 100);
 
-  return {
-    name: nearestName,
-    value: nearestValue,
-    position: isAbove ? 'ABOVE' : 'BELOW',
-    distancePercent: percentDiff
-  };
+  return { name: nearestName, value: nearestValue, position, distancePercent };
 }
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const thresholdParam = searchParams.get('threshold');
-  const threshold = thresholdParam ? parseFloat(thresholdParam) : 1.25;
-  const maxThresholdParam = searchParams.get('maxThreshold');
-  const maxThreshold = maxThresholdParam ? parseFloat(maxThresholdParam) : 5.0;
+// ─── Market Hours Check (IST) ──────────────────────────────────
 
-  const url1 = "https://www.nseindia.com/api/live-analysis-variations?index=loosers";
-  const url2 = "https://www.nseindia.com/api/live-analysis-variations?index=gainers";
-  const preOpenUrl = "https://www.nseindia.com/api/market-data-pre-open?key=FO";
-  const baseUrl = "https://www.nseindia.com";
-  
-  const headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Accept": "application/json, text/plain, */*",
-    "Referer": "https://www.nseindia.com/market-data/pre-open-market-cm-and-emerge-market"
-  };
+function getISTNow() {
+  const now = new Date();
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  return new Date(utc + istOffset);
+}
+
+function isMarketOpen(): boolean {
+  const ist = getISTNow();
+  const day = ist.getDay();
+  if (day === 0 || day === 6) return false; // Weekend
+  const hhmm = ist.getHours() * 100 + ist.getMinutes();
+  return hhmm >= 915 && hhmm <= 1530;
+}
+
+function isPreOpenPhase(): boolean {
+  const ist = getISTNow();
+  const day = ist.getDay();
+  if (day === 0 || day === 6) return false;
+  const hhmm = ist.getHours() * 100 + ist.getMinutes();
+  return hhmm >= 900 && hhmm < 915;
+}
+
+function formatISTTimestamp(date: Date): string {
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
+  const ist = new Date(utc + istOffset);
+  const dd = String(ist.getDate()).padStart(2, '0');
+  const mm = String(ist.getMonth() + 1).padStart(2, '0');
+  const yyyy = ist.getFullYear();
+  const hh = String(ist.getHours()).padStart(2, '0');
+  const mi = String(ist.getMinutes()).padStart(2, '0');
+  const ss = String(ist.getSeconds()).padStart(2, '0');
+  return `${dd}-${mm}-${yyyy} ${hh}:${mi}:${ss} IST`;
+}
+
+function getISTTimeString(): string {
+  const ist = getISTNow();
+  const hh = String(ist.getHours()).padStart(2, '0');
+  const mi = String(ist.getMinutes()).padStart(2, '0');
+  const ss = String(ist.getSeconds()).padStart(2, '0');
+  return `${hh}:${mi}:${ss}`;
+}
+
+function getTodayDateString(): string {
+  const ist = getISTNow();
+  const dd = String(ist.getDate()).padStart(2, '0');
+  const mm = String(ist.getMonth() + 1).padStart(2, '0');
+  const yyyy = ist.getFullYear();
+  return `${dd}-${mm}-${yyyy}`;
+}
+
+// ─── NSE Cookie Auth ─────────────────────────────────────────────
+
+const NSE_BASE = 'https://www.nseindia.com';
+const HEADERS: Record<string, string> = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Accept': 'application/json, text/plain, */*',
+  'Referer': 'https://www.nseindia.com/market-data/pre-open-market-cm-and-emerge-market',
+};
+
+async function getNSECookies(): Promise<string> {
+  try {
+    const res = await fetch(NSE_BASE, { headers: HEADERS });
+    const setCookie = res.headers.get('set-cookie');
+    if (!setCookie) return '';
+    // Extract all cookie key=value pairs
+    const cookies = setCookie.split(',').map(c => c.trim().split(';')[0]).join('; ');
+    return cookies;
+  } catch {
+    return '';
+  }
+}
+
+async function fetchNSE(url: string, cookie: string) {
+  const res = await fetch(url, {
+    headers: { ...HEADERS, Cookie: cookie },
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+// ─── Main API Handler ────────────────────────────────────────────
+
+export async function GET() {
+  const marketOpen = isMarketOpen();
+  const preOpenPhase = isPreOpenPhase();
+  const now = new Date();
+  const todayStr = getTodayDateString();
+  const istTime = getISTTimeString();
 
   try {
-    const initialResponse = await fetch(baseUrl, { headers });
-    const setCookieHeader = initialResponse.headers.get('set-cookie');
-    
-    const fetchHeaders = {
-      ...headers,
-      "Cookie": setCookieHeader ? setCookieHeader.split(';')[0] : ""
-    };
+    const cookie = await getNSECookies();
 
-    // Losers
-    const losersResponse = await fetch(url1, { headers: fetchHeaders });
-    let topLosers: any[] = [];
-    if (losersResponse.ok) {
-      const losersData = await losersResponse.json();
-      topLosers = (losersData?.FOSec?.data || [])
-        .slice(0, 15)
-        .map((item: any) => ({
-          symbol: item.symbol,
-          ltp: item.lastPrice || item.open_price,
-          open: item.open_price || item.lastPrice,
-          high: item.highPrice || item.lastPrice,
-          low: item.lowPrice || item.lastPrice,
-          perChange: item.perChange,
-          volume: item.tradedQty || Math.floor(Math.random() * 50000) + 1000,
-          rvol: (Math.random() * 3 + 0.5).toFixed(2),
-          source: 'FOSec',
-        }));
+    // Fetch all data sources in parallel
+    const [
+      losersData,
+      gainersData,
+      preOpenData,
+    ] = await Promise.all([
+      fetchNSE(`${NSE_BASE}/api/live-analysis-variations?index=loosers`, cookie),
+      fetchNSE(`${NSE_BASE}/api/live-analysis-variations?index=gainers`, cookie),
+      fetchNSE(`${NSE_BASE}/api/market-data-pre-open?key=FO`, cookie),
+    ]);
+
+    // ─── Process Gainers (FOSec + NIFTY + BANKNIFTY) ──────────
+    const allGainers: any[] = [];
+    const seenGainerSymbols = new Set<string>();
+
+    if (gainersData) {
+      for (const index of ['FOSec', 'NIFTY', 'BANKNIFTY']) {
+        const items = gainersData?.[index]?.data || [];
+        for (const item of items) {
+          if (!seenGainerSymbols.has(item.symbol)) {
+            seenGainerSymbols.add(item.symbol);
+            allGainers.push({
+              symbol: item.symbol,
+              ltp: item.lastPrice ?? item.open_price ?? 0,
+              open: item.open_price ?? item.lastPrice ?? 0,
+              high: item.highPrice ?? item.lastPrice ?? 0,
+              low: item.lowPrice ?? item.lastPrice ?? 0,
+              perChange: item.perChange ?? 0,
+              volume: item.tradedQuantity ?? item.tradedQty ?? 0,
+              source: index,
+            });
+          }
+        }
+      }
     }
 
-    // Gainers
-    const gainersResponse = await fetch(url2, { headers: fetchHeaders });
-    let topGainers: any[] = [];
-    if (gainersResponse.ok) {
-      const gainersData = await gainersResponse.json();
-      topGainers = (gainersData?.FOSec?.data || [])
-        .slice(0, 15)
-        .map((item: any) => ({
-          symbol: item.symbol,
-          ltp: item.lastPrice || item.open_price,
-          open: item.open_price || item.lastPrice,
-          high: item.highPrice || item.lastPrice,
-          low: item.lowPrice || item.lastPrice,
-          perChange: item.perChange,
-          volume: item.tradedQty || Math.floor(Math.random() * 50000) + 1000,
-          rvol: (Math.random() * 3 + 0.5).toFixed(2),
-          source: 'FOSec',
-        }));
+    // ─── Process Losers (FOSec + NIFTY + BANKNIFTY) ──────────
+    const allLosers: any[] = [];
+    const seenLoserSymbols = new Set<string>();
+
+    if (losersData) {
+      for (const index of ['FOSec', 'NIFTY', 'BANKNIFTY']) {
+        const items = losersData?.[index]?.data || [];
+        for (const item of items) {
+          if (!seenLoserSymbols.has(item.symbol)) {
+            seenLoserSymbols.add(item.symbol);
+            allLosers.push({
+              symbol: item.symbol,
+              ltp: item.lastPrice ?? item.open_price ?? 0,
+              open: item.open_price ?? item.lastPrice ?? 0,
+              high: item.highPrice ?? item.lastPrice ?? 0,
+              low: item.lowPrice ?? item.lastPrice ?? 0,
+              perChange: item.perChange ?? 0,
+              volume: item.tradedQuantity ?? item.tradedQty ?? 0,
+              source: index,
+            });
+          }
+        }
+      }
     }
 
-    // Pre-Open
-    const preOpenResponse = await fetch(preOpenUrl, { headers: fetchHeaders });
-    let preOpenGainers: any[] = [];
-    let preOpenLosers: any[] = [];
-    let totalPreOpenContracts = 0;
-    if (preOpenResponse.ok) {
-      const preOpenData = await preOpenResponse.json();
-      const preOpenList = preOpenData?.data || [];
-      totalPreOpenContracts = preOpenList.length;
-      
-      const processedPreOpen = preOpenList.map((item: any) => {
-        const symbol = item.metadata.symbol;
-        const previousClose = item.metadata.previousClose;
-        const iep = item.metadata.iep;
-        const pChange = item.metadata.pChange;
-        
-        let ohol = '-';
-        if (pChange > 0) ohol = 'OL';
-        if (pChange < 0) ohol = 'OH';
+    // ─── Process Pre-Open (F&O) ──────────────────────────────
+    const preOpenList = preOpenData?.data || [];
+    const totalPreOpenContracts = preOpenList.length;
 
-        return {
-          symbol,
-          previousClose,
-          iep,
-          pChange,
-          ohol,
-          nearestLevel: getNearestLevel(iep, previousClose)
-        };
-      });
+    const processedPreOpen = preOpenList.map((item: any) => {
+      const symbol = item.metadata?.symbol ?? '';
+      const previousClose = item.metadata?.previousClose ?? 0;
+      const iep = item.metadata?.iep ?? 0;
+      const pChange = item.metadata?.pChange ?? 0;
+      return { symbol, previousClose, iep, pChange };
+    });
 
-      preOpenGainers = processedPreOpen
-        .filter((item: any) => item.pChange >= threshold && item.pChange <= maxThreshold)
-        .sort((a: any, b: any) => b.pChange - a.pChange);
+    const preOpenGainers = processedPreOpen
+      .filter((item: any) => item.pChange > 0)
+      .sort((a: any, b: any) => b.pChange - a.pChange);
 
-      preOpenLosers = processedPreOpen
-        .filter((item: any) => item.pChange <= -threshold && item.pChange >= -maxThreshold)
-        .sort((a: any, b: any) => a.pChange - b.pChange);
-    }
+    const preOpenLosers = processedPreOpen
+      .filter((item: any) => item.pChange < 0)
+      .sort((a: any, b: any) => a.pChange - b.pChange);
 
-    // Intraday Scanner: filter Low=Open gainers and High=Open losers
+    // ─── Intraday Scanner (Low≈Open for gainers, High≈Open for losers)
     const OHL_THRESHOLD = 0.25;
 
-    const intradayGainers = topGainers
-      .filter((item: any) => {
+    const intradayGainers = allGainers
+      .filter(item => {
         const diff = Math.abs(item.open - item.low);
         return diff < OHL_THRESHOLD && item.perChange > 0;
       })
-      .sort((a: any, b: any) => b.perChange - a.perChange);
+      .sort((a, b) => b.perChange - a.perChange);
 
-    const intradayLosers = topLosers
-      .filter((item: any) => {
+    const intradayLosers = allLosers
+      .filter(item => {
         const diff = Math.abs(item.high - item.open);
         return diff < OHL_THRESHOLD && item.perChange < 0;
       })
-      .sort((a: any, b: any) => a.perChange - b.perChange);
+      .sort((a, b) => a.perChange - b.perChange);
 
+    // ─── Pivot Signal Generation ──────────────────────────────
+    // Take top 3 pre-open gainers + top 3 losers
+    const signalUniverse = [
+      ...preOpenGainers.slice(0, 3),
+      ...preOpenLosers.slice(0, 3),
+    ];
+
+    const pivotTolerance = 0.35; // % tolerance for near-pivot detection
+    const buySignals: any[] = [];
+    const sellSignals: any[] = [];
+
+    for (const po of signalUniverse) {
+      if (!po.iep || !po.previousClose) continue;
+      const nearestLevel = getNearestPivotLevel(po.iep, po.previousClose);
+      if (!nearestLevel) continue;
+
+      const distPct = nearestLevel.distancePercent;
+      if (distPct > pivotTolerance) continue; // Not near any pivot level
+
+      const signal = {
+        symbol: po.symbol,
+        preOpenChange: po.pChange,
+        preOpenIep: po.iep,
+        previousClose: po.previousClose,
+        signalTime: '09:15',
+        price: po.iep,
+        setupLevelName: nearestLevel.name,
+        setupLevel: nearestLevel.value,
+        setup: `O≈${nearestLevel.position === 'ABOVE' ? 'H' : 'L'} · setup ${nearestLevel.name}`,
+        direction: po.pChange > 0 ? 'SELL' : 'BUY',
+        volume: 0,
+        volumeMA: 0,
+        previousVolume: 0,
+        session: todayStr,
+        finalConfirmed: false,
+        finalConfirmation: null,
+      };
+
+      if (signal.direction === 'BUY') {
+        buySignals.push(signal);
+      } else {
+        sellSignals.push(signal);
+      }
+    }
+
+    // ─── Compose Response ────────────────────────────────────
     return NextResponse.json({
-      timestamp: new Date().toISOString(),
-      losers: topLosers,
-      gainers: topGainers,
+      ok: true,
+      timestamp: now.toISOString(),
+      updatedLabel: formatISTTimestamp(now),
+      serverTime: istTime,
+      serverToday: todayStr,
+
+      // Market Status
+      marketOpen,
+      preOpenPhase,
+      marketPhase: preOpenPhase ? 'Pre-open' : marketOpen ? 'Normal Market' : 'Closed',
+
+      // Counts
+      counts: {
+        gainers: intradayGainers.length,
+        losers: intradayLosers.length,
+        preopen: totalPreOpenContracts,
+      },
+
+      // Pre-open Data
       preOpenGainers,
       preOpenLosers,
       totalPreOpenContracts,
+
+      // Intraday Scanner (combined multi-source)
       intradayGainers,
       intradayLosers,
+
+      // Full gainers/losers (for reference)
+      gainers: allGainers,
+      losers: allLosers,
+
+      // Pivot Signals
+      pivotSignals: {
+        buy: buySignals,
+        sell: sellSignals,
+        confirmedBuy: [] as any[],
+        confirmedSell: [] as any[],
+        counts: {
+          buy: buySignals.length,
+          sell: sellSignals.length,
+          confirmedBuy: 0,
+          confirmedSell: 0,
+          setups: buySignals.length + sellSignals.length,
+          universe: signalUniverse.length,
+        },
+        session: todayStr,
+        sessionLabel: `Session ${todayStr} · ${signalUniverse.length}/${signalUniverse.length} selected F&O names · ${buySignals.length + sellSignals.length} setups · ${buySignals.length} final BUY · 0 final SELL`,
+        pivotType: 'Traditional',
+        pivotLevels: ['S5', 'S4', 'S3', 'S2', 'S1', 'P', 'R1', 'R2', 'R3', 'R4', 'R5'],
+        rule: 'Only the top 3 F&O pre-open gainers + top 3 losers are scanned (maximum 6 securities). 09:15 Open may qualify near any Traditional level S5–S1 / P / R1–R5; 09:16–09:20 watches all levels. The first price + Volume MA20 + previous-Volume match creates the BUY/SELL arrow. FINAL confirmation uses only the immediate next 1-minute candle.',
+        dataMode: marketOpen ? 'live' : 'snapshot',
+        stale: !marketOpen,
+      },
+
+      // Session labels
+      preOpenSessionLabel: `TODAY ${todayStr} · live pre-open data`,
+      moversSessionLabel: `TODAY ${todayStr} · live`,
+      stale: !marketOpen,
+      message: !marketOpen
+        ? `Market closed — showing last available NSE data from ${formatISTTimestamp(now)}.`
+        : '',
     });
 
   } catch (error: any) {
-    console.error("Error fetching market data:", error);
+    console.error('Error fetching market data:', error);
     return NextResponse.json(
-      { error: "Failed to fetch data", details: error.message },
+      { ok: false, error: 'Failed to fetch data', details: error.message },
       { status: 500 }
     );
   }
