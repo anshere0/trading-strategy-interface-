@@ -80,6 +80,30 @@ type MarketData = {
     dataMode: string;
     stale: boolean;
   };
+  twsSignals?: {
+    long: {
+      symbol: string;
+      ltp: number;
+      status: 'LONG ACTIVE' | 'SHORT ACTIVE' | 'PDH BROKEN' | 'PDL BROKEN';
+      trigger: string;
+      entryPx?: number;
+      stopPx?: number;
+      tgt1?: number;
+      tgt2?: number;
+      time: string;
+    }[];
+    short: {
+      symbol: string;
+      ltp: number;
+      status: 'LONG ACTIVE' | 'SHORT ACTIVE' | 'PDH BROKEN' | 'PDL BROKEN';
+      trigger: string;
+      entryPx?: number;
+      stopPx?: number;
+      tgt1?: number;
+      tgt2?: number;
+      time: string;
+    }[];
+  };
   preOpenSessionLabel: string;
   moversSessionLabel: string;
   stale: boolean;
@@ -657,6 +681,112 @@ export default function Home() {
                 </table>
               ) : (
                 <div className="signal-empty">No FINAL CONFIRMED SELL signal yet.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ TWS PDH/PDL SCREENER SECTION ═══ */}
+      <section className="mb-8">
+        <div className="mb-4">
+          <h2 className="section-title">TWS PDH/PDL Break & Retest</h2>
+          <p className="section-subtitle mt-2" style={{ maxWidth: '80%' }}>
+            Screener for the "Trading With Sidhant" strategy. Identifies stocks where the 15-min candle breaks the Previous Day High (PDH) or Low (PDL) and successfully retests the level with a directional pin bar or engulfing candle within the entry window.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* LONG Signals */}
+          <div className="signal-panel">
+            <div className="signal-header">
+              <h3>TWS Long Setups</h3>
+              <span className="signal-count buy-count">
+                {data?.twsSignals?.long?.length ?? 0} LONG
+              </span>
+            </div>
+            <div className="signal-body">
+              {data?.twsSignals?.long?.length ? (
+                <table className="signal-table">
+                  <thead>
+                    <tr>
+                      <th>Symbol</th>
+                      <th>Status</th>
+                      <th>Entry</th>
+                      <th>SL</th>
+                      <th>T1 (2R)</th>
+                      <th>T2 (3R)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.twsSignals.long.map((sig) => (
+                      <tr key={sig.symbol}>
+                        <td>
+                          <div className="font-bold text-green">↑ {sig.symbol}</div>
+                          <div className="signal-symbol-info text-[0.7rem] leading-tight mt-1">{sig.trigger}</div>
+                        </td>
+                        <td>
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${sig.status.includes('ACTIVE') ? 'bg-green-900/40 text-green-400' : 'bg-cyan-900/40 text-cyan-400'}`}>
+                            {sig.status}
+                          </span>
+                        </td>
+                        <td className="text-yellow font-bold">{sig.entryPx ? fmtPrice(sig.entryPx) : '—'}</td>
+                        <td className="text-red font-medium">{sig.stopPx ? fmtPrice(sig.stopPx) : '—'}</td>
+                        <td className="text-blue font-medium">{sig.tgt1 ? fmtPrice(sig.tgt1) : '—'}</td>
+                        <td className="text-green font-medium">{sig.tgt2 ? fmtPrice(sig.tgt2) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="signal-empty">No TWS Long signals found yet.</div>
+              )}
+            </div>
+          </div>
+
+          {/* SHORT Signals */}
+          <div className="signal-panel">
+            <div className="signal-header">
+              <h3>TWS Short Setups</h3>
+              <span className="signal-count sell-count">
+                {data?.twsSignals?.short?.length ?? 0} SHORT
+              </span>
+            </div>
+            <div className="signal-body">
+              {data?.twsSignals?.short?.length ? (
+                <table className="signal-table">
+                  <thead>
+                    <tr>
+                      <th>Symbol</th>
+                      <th>Status</th>
+                      <th>Entry</th>
+                      <th>SL</th>
+                      <th>T1 (2R)</th>
+                      <th>T2 (3R)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.twsSignals.short.map((sig) => (
+                      <tr key={sig.symbol}>
+                        <td>
+                          <div className="font-bold text-red">↓ {sig.symbol}</div>
+                          <div className="signal-symbol-info text-[0.7rem] leading-tight mt-1">{sig.trigger}</div>
+                        </td>
+                        <td>
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${sig.status.includes('ACTIVE') ? 'bg-red-900/40 text-red-400' : 'bg-orange-900/40 text-orange-400'}`}>
+                            {sig.status}
+                          </span>
+                        </td>
+                        <td className="text-yellow font-bold">{sig.entryPx ? fmtPrice(sig.entryPx) : '—'}</td>
+                        <td className="text-red font-medium">{sig.stopPx ? fmtPrice(sig.stopPx) : '—'}</td>
+                        <td className="text-blue font-medium">{sig.tgt1 ? fmtPrice(sig.tgt1) : '—'}</td>
+                        <td className="text-green font-medium">{sig.tgt2 ? fmtPrice(sig.tgt2) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="signal-empty">No TWS Short signals found yet.</div>
               )}
             </div>
           </div>

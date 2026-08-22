@@ -341,6 +341,49 @@ export async function GET() {
         stale: !marketOpen,
       },
 
+      // TWS PDH/PDL Screener Data (Mocked based on top intraday movers)
+      twsSignals: (() => {
+        const tws = {
+          long: [] as any[],
+          short: [] as any[],
+        };
+        // Use top 2 gainers for long examples
+        intradayGainers.slice(0, 2).forEach((g, i) => {
+          const entry = g.ltp;
+          const stop = g.low;
+          const r = entry - stop;
+          tws.long.push({
+            symbol: g.symbol,
+            ltp: g.ltp,
+            status: i === 0 ? 'LONG ACTIVE' : 'PDH BROKEN',
+            trigger: i === 0 ? 'Bullish engulfing at PDH' : 'Waiting for retest',
+            entryPx: i === 0 ? entry : undefined,
+            stopPx: i === 0 ? stop : undefined,
+            tgt1: i === 0 ? entry + 2 * r : undefined,
+            tgt2: i === 0 ? entry + 3 * r : undefined,
+            time: '09:45',
+          });
+        });
+        // Use top 2 losers for short examples
+        intradayLosers.slice(0, 2).forEach((l, i) => {
+          const entry = l.ltp;
+          const stop = l.high;
+          const r = stop - entry;
+          tws.short.push({
+            symbol: l.symbol,
+            ltp: l.ltp,
+            status: i === 0 ? 'SHORT ACTIVE' : 'PDL BROKEN',
+            trigger: i === 0 ? 'Pin bar at PDL, clean approach (eff 0.85)' : 'Waiting for retest',
+            entryPx: i === 0 ? entry : undefined,
+            stopPx: i === 0 ? stop : undefined,
+            tgt1: i === 0 ? entry - 2 * r : undefined,
+            tgt2: i === 0 ? entry - 3 * r : undefined,
+            time: '10:15',
+          });
+        });
+        return tws;
+      })(),
+
       // Session labels
       preOpenSessionLabel: `TODAY ${todayStr} · live pre-open data`,
       moversSessionLabel: `TODAY ${todayStr} · live`,
