@@ -147,7 +147,9 @@ function getSourceClass(source: string) {
 
 export default function Home() {
   const [data, setData] = useState<MarketData | null>(null);
+  const [twsData, setTwsData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [twsLoading, setTwsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   // Controls
@@ -180,6 +182,21 @@ export default function Home() {
     }
   }, []);
 
+  const fetchTwsData = useCallback(async () => {
+    try {
+      setTwsLoading(true);
+      const res = await fetch('/api/scan');
+      if (res.ok) {
+        const json = await res.json();
+        setTwsData(json);
+      }
+    } catch (err) {
+      console.error('Failed to fetch TWS scan data', err);
+    } finally {
+      setTwsLoading(false);
+    }
+  }, []);
+
   // ─── Clock ─────────────────────────────────────────
 
   useEffect(() => {
@@ -200,7 +217,8 @@ export default function Home() {
 
   useEffect(() => {
     fetchMarketData();
-  }, [fetchMarketData]);
+    fetchTwsData();
+  }, [fetchMarketData, fetchTwsData]);
 
   useEffect(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
@@ -218,6 +236,7 @@ export default function Home() {
 
       intervalRef.current = setInterval(() => {
         fetchMarketData();
+        fetchTwsData();
         setCountdown(autoRefreshSec);
       }, autoRefreshSec * 1000);
     } else {
@@ -228,7 +247,7 @@ export default function Home() {
       if (intervalRef.current) clearInterval(intervalRef.current);
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
-  }, [autoRefreshSec, fetchMarketData]);
+  }, [autoRefreshSec, fetchMarketData, fetchTwsData]);
 
   // ─── Filtering ─────────────────────────────────────
 
@@ -339,12 +358,13 @@ export default function Home() {
         <button
           onClick={() => {
             fetchMarketData();
+            fetchTwsData();
             setCountdown(autoRefreshSec);
           }}
-          disabled={loading}
+          disabled={loading || twsLoading}
           className="btn-refresh"
         >
-          {loading ? 'Refreshing…' : 'Refresh\nnow'}
+          {(loading || twsLoading) ? 'Refreshing…' : 'Refresh\nnow'}
         </button>
       </div>
 
@@ -690,9 +710,17 @@ export default function Home() {
       {/* ═══ TWS PDH/PDL SCREENER SECTION ═══ */}
       <section className="mb-8">
         <div className="mb-4">
-          <h2 className="section-title">TWS PDH/PDL Break & Retest</h2>
+          <h2 className="section-title flex items-center gap-3">
+            TWS PDH/PDL Break & Retest
+            {twsData?.isScanning && (
+              <span className="text-xs font-normal text-yellow px-2 py-0.5 rounded bg-yellow-900/40">
+                Scanning...
+              </span>
+            )}
+          </h2>
           <p className="section-subtitle mt-2" style={{ maxWidth: '80%' }}>
-            Screener for the "Trading With Sidhant" strategy. Identifies stocks where the 15-min candle breaks the Previous Day High (PDH) or Low (PDL) and successfully retests the level with a directional pin bar or engulfing candle within the entry window.
+            Screener for the "Trading With Sidhant" strategy. Scanning Nifty 500 + Indices via Fyers API. 
+            {twsData?.lastScanTime && ` Last scan completed at ${fmtTimestamp(twsData.lastScanTime)}`}
           </p>
         </div>
 
@@ -702,11 +730,11 @@ export default function Home() {
             <div className="signal-header">
               <h3>TWS Long Setups</h3>
               <span className="signal-count buy-count">
-                {data?.twsSignals?.long?.length ?? 0} LONG
+                {twsData?.twsSignals?.long?.length ?? 0} LONG
               </span>
             </div>
             <div className="signal-body">
-              {data?.twsSignals?.long?.length ? (
+              {twsData?.twsSignals?.long?.length ? (
                 <table className="signal-table">
                   <thead>
                     <tr>
@@ -719,11 +747,12 @@ export default function Home() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.twsSignals.long.map((sig) => (
+                    {twsData.twsSignals.long.map((sig: any) => (
                       <tr key={sig.symbol}>
                         <td>
                           <div className="font-bold text-green">↑ {sig.symbol}</div>
                           <div className="signal-symbol-info text-[0.7rem] leading-tight mt-1">{sig.trigger}</div>
+                          <div className="text-[0.65rem] text-muted">{sig.time}</div>
                         </td>
                         <td>
                           <span className={`px-2 py-0.5 rounded text-xs font-bold ${sig.status.includes('ACTIVE') ? 'bg-green-900/40 text-green-400' : 'bg-cyan-900/40 text-cyan-400'}`}>
@@ -749,11 +778,11 @@ export default function Home() {
             <div className="signal-header">
               <h3>TWS Short Setups</h3>
               <span className="signal-count sell-count">
-                {data?.twsSignals?.short?.length ?? 0} SHORT
+                {twsData?.twsSignals?.short?.length ?? 0} SHORT
               </span>
             </div>
             <div className="signal-body">
-              {data?.twsSignals?.short?.length ? (
+              {twsData?.twsSignals?.short?.length ? (
                 <table className="signal-table">
                   <thead>
                     <tr>
@@ -766,11 +795,12 @@ export default function Home() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.twsSignals.short.map((sig) => (
+                    {twsData.twsSignals.short.map((sig: any) => (
                       <tr key={sig.symbol}>
                         <td>
                           <div className="font-bold text-red">↓ {sig.symbol}</div>
                           <div className="signal-symbol-info text-[0.7rem] leading-tight mt-1">{sig.trigger}</div>
+                          <div className="text-[0.65rem] text-muted">{sig.time}</div>
                         </td>
                         <td>
                           <span className={`px-2 py-0.5 rounded text-xs font-bold ${sig.status.includes('ACTIVE') ? 'bg-red-900/40 text-red-400' : 'bg-orange-900/40 text-orange-400'}`}>
